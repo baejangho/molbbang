@@ -32,7 +32,7 @@ def get_time_hhmmss(mili_time):
 def log_info(message):
     print("{}".format(message))
 
-#1분 데이터 가져오기
+#캔들 데이터 가져오기
 def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     '''
     bitget에서 캔들 데이터 가져오는 함수
@@ -41,31 +41,47 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
         granularity(int): 캔들 단위 예: 60(1분봉), 300(5분봉), 900(15분봉), 1800(30분봉), 3600(1시간봉), 14400(4시간봉), 86400(1일봉)
         symbol(str): 코인 심볼(기본값 : BTCUSDT_UMCBL)
     '''
+    # 요청 url
+    url = "https://api.bitget.com/api/mix/v1/market/candles"
+    # 현재 시간(밀리초)
+    current_time = int(time.time() * 1000)
+    # 요청 시작 시간(days일 전)
+    start_time = current_time - (days * 24 * 60 * 60 * 1000)
+    # 1,000개의 캔들 데이터 범위(최대 1,000개의 데이터 요청, 밀리초 단위)
+    max_interval = 1000 * granularity * 1000 # 개 * 초 * 밀리초
     # 현재 시간 기준으로 days 일 전 타임스탬프 계산
     since = int((datetime.datetime.now() - datetime.timedelta(days=days)).timestamp() * 1000)
     
     # 데이터프레임 초기화
+    # df = pd.DataFrame()
     df_all = pd.DataFrame()
     
-    # 요청 파라미터
-    url = "https://api.bitget.com/api/mix/v1/market/candles"
-    params = {
-        "symbol": "BTCUSDT_UMCBL",  # 심볼: 비트코인/USDT
-        "granularity": 60,          # 1분봉 (60초 단위)
-        "startTime": 1672444800000, # 시작 시간 (밀리초)
-        "endTime": 1672448400000    # 종료 시간 (밀리초)
-    }
+    # 데이터 반복 요청(1000개씩)
+    while start_time < current_time:
+        # 요청 파라미터
+        end_time = min(start_time + max_interval, current_time)
+        params = {
+            "symbol": symbol,           # 심볼: 비트코인/USDT
+            "granularity": granularity, # 캔들 단위
+            "startTime": start_time,    # 시작 시간 (밀리초)
+            "endTime": end_time    # 종료 시간 (밀리초)
+        }
+        # API 요청 (Public API라 인증 불필요)
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            print(data)
+            df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume','turnover'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df[['open', 'high', 'low', 'close', 'volume','turnover']] = df[['open', 'high', 'low', 'close', 'volume','turnover']].astype(float)
+            df_all = pd.concat([df_all, df], axis=0)
+            # 다음 데이터 요청을 위한 시작 시간 설정
+            start_time = end_time + 1
+            # Bitget API rate limit을 피하기 위해 잠시 대기
+            time.sleep(1)
+        else:
+            print(f"API 요청 에러: {response.status_code}")
     
-    while True:
-        df = fetch_ohlcv(symbol, timeframe=timeframe, since=since)
-        if df.empty:
-            break
-        df_all = pd.concat([df_all, df], axis=0)
-        since = int(df['timestamp'].iloc[-1].timestamp() * 1000) + 1  # 마지막 타임스탬프 이후부터 가져오기
-
-        # Bitget API rate limit을 피하기 위해 잠시 대기
-        bitget.sleep(10)
-
     # 중복된 행 제거
     df_all.drop_duplicates(subset='timestamp', keep='first', inplace=True)
     
@@ -77,14 +93,7 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     df_all.to_csv(output_file, index=False)
     print(f"CSV 파일로 저장 완료: {output_file}")
     
-    
-
-    # API 요청 (Public API라 인증 불필요)
-    response = requests.get(url, params=params)
-
-    # 결과 출력
-    print(response.json())
-    return '작성할 것'
+    return df_all
 
 #오픈건수 계산
 def check_open_cnt(check_data, amt_list):
@@ -117,4 +126,4 @@ def get_max_loss(close, open_amt_unit, open_cnt_limit, increace_rate, max_loss_r
 
 
 if __name__ == "__main__":
-    get_web_1m_data(10)
+    get_web_1m_data(1,60)
