@@ -59,12 +59,14 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     # 데이터 반복 요청(1000개씩)
     while start_time < current_time:
         # 요청 파라미터
+        print(pd.to_datetime(start_time, unit='ms').tz_localize('UTC').tz_convert('Asia/Seoul'))
         end_time = min(start_time + max_interval, current_time)
         params = {
             "symbol": symbol,           # 심볼: 비트코인/USDT
             "granularity": granularity, # 캔들 단위
             "startTime": start_time,    # 시작 시간 (밀리초)
-            "endTime": end_time    # 종료 시간 (밀리초)
+            "endTime": end_time,    # 종료 시간 (밀리초)
+            "limit": "1000"        # 최대 1000개 데이터 요청
         }
         # API 요청 (Public API라 인증 불필요)
         response = requests.get(url, params=params)
@@ -72,6 +74,7 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
             data = response.json()
             print(data)
             df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume','turnover'])
+            df['timestamp'] = df['timestamp'].astype(int)
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             df[['open', 'high', 'low', 'close', 'volume','turnover']] = df[['open', 'high', 'low', 'close', 'volume','turnover']].astype(float)
             df_all = pd.concat([df_all, df], axis=0)
@@ -94,6 +97,7 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     print(f"CSV 파일로 저장 완료: {output_file}")
     
     return df_all
+
 
 #오픈건수 계산
 def check_open_cnt(check_data, amt_list):
@@ -126,4 +130,4 @@ def get_max_loss(close, open_amt_unit, open_cnt_limit, increace_rate, max_loss_r
 
 
 if __name__ == "__main__":
-    get_web_1m_data(1,60)
+    get_web_1m_data(32,60)
