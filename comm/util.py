@@ -47,6 +47,7 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     current_time = int(time.time() * 1000)
     # 요청 시작 시간(days일 전)
     start_time = current_time - (days * 24 * 60 * 60 * 1000)
+    print(start_time)
     # 1,000개의 캔들 데이터 범위(최대 1,000개의 데이터 요청, 밀리초 단위)
     max_interval = 1000 * granularity * 1000 # 개 * 초 * 밀리초
     # 현재 시간 기준으로 days 일 전 타임스탬프 계산
@@ -59,14 +60,12 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     # 데이터 반복 요청(1000개씩)
     while start_time < current_time:
         # 요청 파라미터
-        print(pd.to_datetime(start_time, unit='ms').tz_localize('UTC').tz_convert('Asia/Seoul'))
         end_time = min(start_time + max_interval, current_time)
         params = {
             "symbol": symbol,           # 심볼: 비트코인/USDT
             "granularity": granularity, # 캔들 단위
             "startTime": start_time,    # 시작 시간 (밀리초)
-            "endTime": end_time,    # 종료 시간 (밀리초)
-            "limit": "1000"        # 최대 1000개 데이터 요청
+            "endTime": end_time    # 종료 시간 (밀리초)
         }
         # API 요청 (Public API라 인증 불필요)
         response = requests.get(url, params=params)
@@ -97,7 +96,6 @@ def get_web_1m_data(days, granularity, symbol="BTCUSDT_UMCBL"):
     print(f"CSV 파일로 저장 완료: {output_file}")
     
     return df_all
-
 
 #오픈건수 계산
 def check_open_cnt(check_data, amt_list):
@@ -130,4 +128,4 @@ def get_max_loss(close, open_amt_unit, open_cnt_limit, increace_rate, max_loss_r
 
 
 if __name__ == "__main__":
-    get_web_1m_data(32,60)
+    get_web_1m_data(100,60)
